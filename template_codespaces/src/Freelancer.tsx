@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import {
@@ -6,67 +7,79 @@ import {
   LAMPORTS_PER_SOL,
   PublicKey,
 } from "@solana/web3.js";
-import { useState } from "react";
 
-/* ================= PROPS ================= */
 type Props = {
   onBack: () => void;
 };
 
-/* ================= ESCROW ================= */
 const ESCROW = new PublicKey("GS8hRTAX1bdBJhpHcqYgZVozYTyZt3EU9YEv34y9FRyB");
 
-/* ================= COMPONENT ================= */
-export default function Cliente({ onBack }: Props) {
+export default function Freelancer({ onBack }: Props) {
   const { connection } = useConnection();
   const { publicKey, sendTransaction } = useWallet();
 
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState("");
+  const [balance, setBalance] = useState<number | null>(null);
 
-  const deposit = async () => {
-    if (!publicKey) return setStatus("Conecta tu wallet");
+  const checkBalance = async () => {
+    try {
+      const bal = await connection.getBalance(ESCROW);
+      setBalance(bal / LAMPORTS_PER_SOL);
+    } catch (err) {
+      console.error(err);
+      alert("Error al obtener balance");
+    }
+  };
 
-    setLoading(true);
-    setStatus("Enviando transacción...");
+  const withdraw = async () => {
+    if (!publicKey) {
+      alert("Conecta tu wallet");
+      return;
+    }
 
     try {
+      setLoading(true);
+
       const tx = new Transaction().add(
         SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: ESCROW,
-          lamports: 0.1 * LAMPORTS_PER_SOL,
+          fromPubkey: ESCROW,
+          toPubkey: publicKey,
+          lamports: Math.round(0.1 * LAMPORTS_PER_SOL),
         })
       );
 
       const sig = await sendTransaction(tx, connection);
-      setStatus("Confirmando en red...");
+      await connection.confirmTransaction(sig, "confirmed");
 
-      await connection.confirmTransaction(sig);
-
-      setStatus("Depósito confirmado ✅");
+      alert("Fondos retirados");
     } catch (err) {
       console.error(err);
-      setStatus("Error en la transacción ❌");
+      alert("No autorizado o error");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
     <div style={styles.container}>
-      <div style={styles.glow}></div>
-
       <div style={styles.card}>
-        <h1 style={styles.title}>Escrow Cliente</h1>
+        <h1 style={styles.title}>Freelancer</h1>
 
         <p style={styles.subtitle}>
-          Protege tu pago hasta que el trabajo se complete
+          Consulta y retira fondos del escrow
         </p>
 
         <div style={{ marginBottom: 20 }}>
           <WalletMultiButton />
         </div>
+
+        <button style={styles.secondaryBtn} onClick={checkBalance}>
+          Ver balance escrow
+        </button>
+
+        {balance !== null && (
+          <p style={styles.balance}>{balance} SOL</p>
+        )}
 
         <button
           style={{
@@ -74,13 +87,11 @@ export default function Cliente({ onBack }: Props) {
             opacity: loading ? 0.6 : 1,
             cursor: loading ? "not-allowed" : "pointer",
           }}
-          onClick={deposit}
+          onClick={withdraw}
           disabled={loading}
         >
-          {loading ? "Procesando..." : "Depositar 0.1 SOL"}
+          {loading ? "Procesando..." : "Retirar fondos"}
         </button>
-
-        {status && <p style={styles.status}>{status}</p>}
 
         {publicKey && (
           <p style={styles.wallet}>
@@ -97,84 +108,82 @@ export default function Cliente({ onBack }: Props) {
   );
 }
 
-/* ================= ESTILOS ================= */
-
-const styles = {
+const styles: { [key: string]: any } = {
   container: {
     height: "100vh",
-    background: "#0a0a0f",
+    background: "#050508",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    position: "relative" as const,
-    overflow: "hidden" as const,
     color: "#fff",
     fontFamily: "sans-serif",
   },
 
-  glow: {
-    position: "absolute" as const,
-    width: "400px",
-    height: "400px",
-    background: "radial-gradient(circle, #9945FF55, transparent)",
-    filter: "blur(100px)",
-  },
-
   card: {
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "20px",
+    background: "rgba(255,255,255,0.05)",
+    backdropFilter: "blur(12px)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: "16px",
     padding: "40px",
-    width: "340px",
-    textAlign: "center" as const,
-    backdropFilter: "blur(20px)",
-    boxShadow: "0 20px 80px rgba(0,0,0,0.6)",
+    width: "320px",
+    textAlign: "center",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
   },
 
   title: {
-    fontSize: "26px",
+    fontSize: "28px",
     marginBottom: "10px",
-    letterSpacing: "0.5px",
   },
 
   subtitle: {
-    fontSize: "13px",
-    color: "#999",
-    marginBottom: "30px",
+    fontSize: "14px",
+    color: "#aaa",
+    marginBottom: "20px",
   },
 
   button: {
     width: "100%",
     padding: "14px",
-    borderRadius: "12px",
+    borderRadius: "10px",
     border: "none",
-    background: "linear-gradient(90deg, #9945FF, #14F195)",
+    background: "linear-gradient(90deg, #14F195, #00FFA3)",
     color: "#000",
-    fontWeight: "600",
-    fontSize: "15px",
-    transition: "0.2s",
+    fontWeight: "bold",
+    fontSize: "16px",
+    marginTop: "10px",
+  },
+
+  secondaryBtn: {
+    width: "100%",
+    padding: "10px",
+    borderRadius: "8px",
+    border: "1px solid #333",
+    background: "transparent",
+    color: "#aaa",
+    cursor: "pointer",
+    marginBottom: "10px",
   },
 
   backBtn: {
     width: "100%",
     padding: "10px",
-    borderRadius: "10px",
-    border: "1px solid #333",
+    borderRadius: "8px",
+    border: "1px solid #444",
     background: "transparent",
-    color: "#888",
-    cursor: "pointer",
-    marginTop: "12px",
-  },
-
-  status: {
-    marginTop: "16px",
-    fontSize: "13px",
     color: "#aaa",
+    cursor: "pointer",
+    marginTop: "10px",
   },
 
   wallet: {
     marginTop: "20px",
-    fontSize: "11px",
-    color: "#666",
+    fontSize: "12px",
+    color: "#888",
+  },
+
+  balance: {
+    marginTop: "10px",
+    fontSize: "14px",
+    color: "#14F195",
   },
 };

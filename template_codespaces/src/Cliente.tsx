@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import {
@@ -7,45 +8,58 @@ import {
   PublicKey,
 } from "@solana/web3.js";
 
-/* ================= PROPS ================= */
 type Props = {
   onBack: () => void;
 };
 
-/* ================= ESCROW WALLET ================= */
 const ESCROW = new PublicKey("GS8hRTAX1bdBJhpHcqYgZVozYTyZt3EU9YEv34y9FRyB");
 
-/* ================= COMPONENT ================= */
 export default function Cliente({ onBack }: Props) {
   const { connection } = useConnection();
   const { publicKey, sendTransaction } = useWallet();
 
+  const [amount, setAmount] = useState(0.1);
+  const [loading, setLoading] = useState(false);
+
   const deposit = async () => {
-    if (!publicKey) return alert("Conecta wallet");
+    if (!publicKey) {
+      alert("Conecta tu wallet");
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      alert("Monto inválido");
+      return;
+    }
 
     try {
+      setLoading(true);
+
+      const lamports = Math.round(amount * LAMPORTS_PER_SOL);
+
       const tx = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
           toPubkey: ESCROW,
-          lamports: 0.1 * LAMPORTS_PER_SOL,
+          lamports,
         })
       );
 
       const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig);
+      await connection.confirmTransaction(sig, "confirmed");
 
-      alert("Depósito exitoso 🚀");
+      alert(`Depósito exitoso: ${amount} SOL`);
     } catch (err) {
       console.error(err);
       alert("Error en la transacción");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        
         <h1 style={styles.title}>Cliente</h1>
 
         <p style={styles.subtitle}>
@@ -56,13 +70,30 @@ export default function Cliente({ onBack }: Props) {
           <WalletMultiButton />
         </div>
 
-        <button style={styles.button} onClick={deposit}>
-          Depositar 0.1 SOL
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(Number(e.target.value))}
+          step="0.01"
+          style={styles.input}
+          placeholder="Monto en SOL"
+        />
+
+        <button
+          style={{
+            ...styles.button,
+            opacity: loading ? 0.6 : 1,
+            cursor: loading ? "not-allowed" : "pointer",
+          }}
+          onClick={deposit}
+          disabled={loading}
+        >
+          {loading ? "Procesando..." : `Depositar ${amount} SOL`}
         </button>
 
         {publicKey && (
           <p style={styles.wallet}>
-            Wallet: {publicKey.toString().slice(0, 4)}...
+            {publicKey.toString().slice(0, 4)}...
             {publicKey.toString().slice(-4)}
           </p>
         )}
@@ -70,15 +101,12 @@ export default function Cliente({ onBack }: Props) {
         <button style={styles.backBtn} onClick={onBack}>
           ← Volver
         </button>
-
       </div>
     </div>
   );
 }
 
-/* ================= ESTILOS ================= */
-
-const styles = {
+const styles: { [key: string]: any } = {
   container: {
     height: "100vh",
     background: "linear-gradient(135deg, #0f0f0f, #1a1a2e)",
@@ -96,7 +124,7 @@ const styles = {
     borderRadius: "16px",
     padding: "40px",
     width: "320px",
-    textAlign: "center" as const,
+    textAlign: "center",
     boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
   },
 
@@ -111,6 +139,16 @@ const styles = {
     marginBottom: "30px",
   },
 
+  input: {
+    width: "100%",
+    padding: "12px",
+    borderRadius: "8px",
+    border: "1px solid #333",
+    background: "#111",
+    color: "#fff",
+    marginBottom: "15px",
+  },
+
   button: {
     width: "100%",
     padding: "14px",
@@ -120,9 +158,6 @@ const styles = {
     color: "#000",
     fontWeight: "bold",
     fontSize: "16px",
-    cursor: "pointer",
-    transition: "0.2s",
-    marginBottom: "10px",
   },
 
   backBtn: {

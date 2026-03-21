@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import Cliente from "./Cliente";
 import Freelancer from "./Freelancer";
 
@@ -48,7 +48,7 @@ export default function App() {
 
 /* ================= ESTILOS ================= */
 
-const styles = {
+const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: "100vh",
     background: "linear-gradient(135deg, #020617, #0f172a)",
@@ -56,12 +56,12 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     fontFamily: "Arial, sans-serif",
-    position: "relative" as const,
-    overflow: "hidden" as const,
+    position: "relative",
+    overflow: "hidden",
   },
 
   glow: {
-    position: "absolute" as const,
+    position: "absolute",
     width: "500px",
     height: "500px",
     background: "radial-gradient(circle, #6366f1, transparent)",
@@ -74,25 +74,26 @@ const styles = {
     border: "1px solid #334155",
     padding: "40px",
     borderRadius: "16px",
-    textAlign: "center" as const,
+    textAlign: "center",
     width: "350px",
     zIndex: 2,
   },
 
   title: {
     fontSize: "28px",
-    color: "white",
+    color: "#ffffff",
     marginBottom: "10px",
   },
 
   subtitle: {
     color: "#94a3b8",
     marginBottom: "30px",
+    fontSize: "14px",
   },
 
   buttons: {
     display: "flex",
-    flexDirection: "column" as const,
+    flexDirection: "column",
     gap: "15px",
   },
 
@@ -101,9 +102,10 @@ const styles = {
     borderRadius: "10px",
     border: "none",
     background: "#3b82f6",
-    color: "white",
+    color: "#ffffff",
     cursor: "pointer",
     fontWeight: "bold",
+    transition: "0.2s",
   },
 
   secondaryBtn: {
@@ -111,8 +113,9 @@ const styles = {
     borderRadius: "10px",
     border: "none",
     background: "#8b5cf6",
-    color: "white",
+    color: "#ffffff",
     cursor: "pointer",
     fontWeight: "bold",
+    transition: "0.2s",
   },
 };
