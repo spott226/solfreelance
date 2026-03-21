@@ -2,18 +2,26 @@ import { useState } from "react";
 import Cliente from "./Cliente";
 import Freelancer from "./Freelancer";
 
-export default function App() {
-  const [view, setView] = useState("home");
+type View = "home" | "cliente" | "freelancer";
 
-  if (view === "cliente") return <Cliente />;
-  if (view === "freelancer") return <Freelancer />;
+export default function App() {
+  const [view, setView] = useState<View>("home");
+
+  if (view === "cliente") {
+    return <Cliente onBack={() => setView("home")} />;
+  }
+
+  if (view === "freelancer") {
+    return <Freelancer onBack={() => setView("home")} />;
+  }
 
   return (
     <div style={styles.container}>
       <div style={styles.glow}></div>
 
       <div style={styles.card}>
-        <h1 style={styles.title}>SolFreelance</h1>
+        <h1 style={styles.title}>🚀 SolFreelance</h1>
+
         <p style={styles.subtitle}>
           Pagos seguros con escrow en Solana
         </p>
@@ -33,90 +41,78 @@ export default function App() {
             Soy Freelancer
           </button>
         </div>
-
-        <p style={styles.footer}>
-          Sin intermediarios · Transparente · Rápido ⚡
-        </p>
       </div>
     </div>
   );
 }
 
+/* ================= ESTILOS ================= */
+
 const styles = {
   container: {
-    height: "100vh",
-    background: "#0a0a0f",
+    minHeight: "100vh",
+    background: "linear-gradient(135deg, #020617, #0f172a)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    position: "relative",
-    overflow: "hidden",
-    color: "#fff",
-    fontFamily: "sans-serif",
+    fontFamily: "Arial, sans-serif",
+    position: "relative" as const,
+    overflow: "hidden" as const,
   },
 
   glow: {
-    position: "absolute",
+    position: "absolute" as const,
     width: "500px",
     height: "500px",
-    background: "radial-gradient(circle, #14F19533, transparent)",
+    background: "radial-gradient(circle, #6366f1, transparent)",
     filter: "blur(120px)",
+    opacity: 0.3,
   },
 
   card: {
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "20px",
-    padding: "50px 40px",
-    width: "360px",
-    textAlign: "center",
-    backdropFilter: "blur(20px)",
-    boxShadow: "0 20px 80px rgba(0,0,0,0.6)",
+    background: "rgba(15, 23, 42, 0.9)",
+    border: "1px solid #334155",
+    padding: "40px",
+    borderRadius: "16px",
+    textAlign: "center" as const,
+    width: "350px",
+    zIndex: 2,
   },
 
   title: {
-    fontSize: "30px",
+    fontSize: "28px",
+    color: "white",
     marginBottom: "10px",
-    letterSpacing: "1px",
   },
 
   subtitle: {
-    fontSize: "14px",
-    color: "#aaa",
-    marginBottom: "35px",
+    color: "#94a3b8",
+    marginBottom: "30px",
   },
 
   buttons: {
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "column" as const,
     gap: "15px",
   },
 
   primaryBtn: {
-    padding: "14px",
-    borderRadius: "12px",
+    padding: "12px",
+    borderRadius: "10px",
     border: "none",
-    background: "linear-gradient(90deg, #9945FF, #14F195)",
-    color: "#000",
-    fontWeight: "600",
-    fontSize: "15px",
+    background: "#3b82f6",
+    color: "white",
     cursor: "pointer",
+    fontWeight: "bold",
   },
 
   secondaryBtn: {
-    padding: "14px",
-    borderRadius: "12px",
-    border: "1px solid rgba(255,255,255,0.2)",
-    background: "transparent",
-    color: "#fff",
-    fontWeight: "500",
-    fontSize: "15px",
+    padding: "12px",
+    borderRadius: "10px",
+    border: "none",
+    background: "#8b5cf6",
+    color: "white",
     cursor: "pointer",
-  },
-
-  footer: {
-    marginTop: "30px",
-    fontSize: "12px",
-    color: "#666",
+    fontWeight: "bold",
   },
 };

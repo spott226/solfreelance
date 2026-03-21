@@ -8,9 +8,16 @@ import {
 } from "@solana/web3.js";
 import { useState } from "react";
 
+/* ================= PROPS ================= */
+type Props = {
+  onBack: () => void;
+};
+
+/* ================= ESCROW ================= */
 const ESCROW = new PublicKey("GS8hRTAX1bdBJhpHcqYgZVozYTyZt3EU9YEv34y9FRyB");
 
-export default function Cliente() {
+/* ================= COMPONENT ================= */
+export default function Cliente({ onBack }: Props) {
   const { connection } = useConnection();
   const { publicKey, sendTransaction } = useWallet();
 
@@ -52,6 +59,7 @@ export default function Cliente() {
 
       <div style={styles.card}>
         <h1 style={styles.title}>Escrow Cliente</h1>
+
         <p style={styles.subtitle}>
           Protege tu pago hasta que el trabajo se complete
         </p>
@@ -80,10 +88,16 @@ export default function Cliente() {
             {publicKey.toString().slice(-4)}
           </p>
         )}
+
+        <button style={styles.backBtn} onClick={onBack}>
+          ← Volver
+        </button>
       </div>
     </div>
   );
 }
+
+/* ================= ESTILOS ================= */
 
 const styles = {
   container: {
@@ -92,14 +106,14 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    position: "relative",
-    overflow: "hidden",
+    position: "relative" as const,
+    overflow: "hidden" as const,
     color: "#fff",
     fontFamily: "sans-serif",
   },
 
   glow: {
-    position: "absolute",
+    position: "absolute" as const,
     width: "400px",
     height: "400px",
     background: "radial-gradient(circle, #9945FF55, transparent)",
@@ -112,7 +126,7 @@ const styles = {
     borderRadius: "20px",
     padding: "40px",
     width: "340px",
-    textAlign: "center",
+    textAlign: "center" as const,
     backdropFilter: "blur(20px)",
     boxShadow: "0 20px 80px rgba(0,0,0,0.6)",
   },
@@ -139,6 +153,17 @@ const styles = {
     fontWeight: "600",
     fontSize: "15px",
     transition: "0.2s",
+  },
+
+  backBtn: {
+    width: "100%",
+    padding: "10px",
+    borderRadius: "10px",
+    border: "1px solid #333",
+    background: "transparent",
+    color: "#888",
+    cursor: "pointer",
+    marginTop: "12px",
   },
 
   status: {

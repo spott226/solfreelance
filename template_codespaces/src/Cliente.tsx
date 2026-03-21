@@ -7,9 +7,16 @@ import {
   PublicKey,
 } from "@solana/web3.js";
 
+/* ================= PROPS ================= */
+type Props = {
+  onBack: () => void;
+};
+
+/* ================= ESCROW WALLET ================= */
 const ESCROW = new PublicKey("GS8hRTAX1bdBJhpHcqYgZVozYTyZt3EU9YEv34y9FRyB");
 
-export default function Cliente() {
+/* ================= COMPONENT ================= */
+export default function Cliente({ onBack }: Props) {
   const { connection } = useConnection();
   const { publicKey, sendTransaction } = useWallet();
 
@@ -40,6 +47,7 @@ export default function Cliente() {
       <div style={styles.card}>
         
         <h1 style={styles.title}>Cliente</h1>
+
         <p style={styles.subtitle}>
           Deposita fondos en escrow de forma segura
         </p>
@@ -58,10 +66,17 @@ export default function Cliente() {
             {publicKey.toString().slice(-4)}
           </p>
         )}
+
+        <button style={styles.backBtn} onClick={onBack}>
+          ← Volver
+        </button>
+
       </div>
     </div>
   );
 }
+
+/* ================= ESTILOS ================= */
 
 const styles = {
   container: {
@@ -81,7 +96,7 @@ const styles = {
     borderRadius: "16px",
     padding: "40px",
     width: "320px",
-    textAlign: "center",
+    textAlign: "center" as const,
     boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
   },
 
@@ -107,6 +122,18 @@ const styles = {
     fontSize: "16px",
     cursor: "pointer",
     transition: "0.2s",
+    marginBottom: "10px",
+  },
+
+  backBtn: {
+    width: "100%",
+    padding: "10px",
+    borderRadius: "8px",
+    border: "1px solid #444",
+    background: "transparent",
+    color: "#aaa",
+    cursor: "pointer",
+    marginTop: "10px",
   },
 
   wallet: {
