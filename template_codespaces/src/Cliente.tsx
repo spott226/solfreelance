@@ -1,10 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 
 import idlJson from "./idl/vault.json";
+
+const PROGRAM_ID = new PublicKey(
+  "4ZQboCKFb5sJHkzNhQ48VTmo2Zt2zTaJWuMw2aENuo66"
+);
 
 const idl = idlJson as anchor.Idl;
 
@@ -21,6 +25,12 @@ export default function Cliente({ onBack }: Props) {
   const [amount, setAmount] = useState("0.01");
   const [loading, setLoading] = useState(false);
   const [vaultAddress, setVaultAddress] = useState("");
+
+  // 🔥 persistencia para demo
+  useEffect(() => {
+    const saved = localStorage.getItem("vault");
+    if (saved) setVaultAddress(saved);
+  }, []);
 
   const createProject = async () => {
     try {
@@ -47,16 +57,26 @@ export default function Cliente({ onBack }: Props) {
 
       anchor.setProvider(provider);
 
-      const program = new anchor.Program(idl, provider);
-      const PROGRAM_ID = program.programId;
+      const program = new anchor.Program(
+        idl,
+        PROGRAM_ID,
+        provider
+      );
 
+      // 🔥 PDA ÚNICO para evitar colisiones
       const [vaultPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("vault"), wallet.publicKey.toBuffer()],
+        [
+          Buffer.from("vault"),
+          wallet.publicKey.toBuffer(),
+          new anchor.BN(Date.now()).toArrayLike(Buffer, "le", 8),
+        ],
         PROGRAM_ID
       );
 
       const lamports =
         parseFloat(amount) * anchor.web3.LAMPORTS_PER_SOL;
+
+      console.log("📦 Vault:", vaultPda.toBase58());
 
       const tx = await program.methods
         .createProject(new anchor.BN(lamports))
@@ -69,11 +89,15 @@ export default function Cliente({ onBack }: Props) {
 
       console.log("TX:", tx);
 
-      setVaultAddress(vaultPda.toBase58());
+      const vaultStr = vaultPda.toBase58();
+
+      setVaultAddress(vaultStr);
+      localStorage.setItem("vault", vaultStr);
 
       alert("✅ Proyecto creado");
+
     } catch (err) {
-      console.error("❌ ERROR:", err);
+      console.error("❌ ERROR REAL:", err);
       alert("Error al crear");
     } finally {
       setLoading(false);
@@ -82,7 +106,6 @@ export default function Cliente({ onBack }: Props) {
 
   return (
     <div style={styles.container}>
-      {/* NAV */}
       <div style={styles.nav}>
         <button onClick={onBack} style={styles.back}>
           ← Volver
@@ -93,21 +116,19 @@ export default function Cliente({ onBack }: Props) {
         <WalletMultiButton />
       </div>
 
-      {/* MAIN */}
       <div style={styles.main}>
-        {/* FORM */}
         <div style={styles.card}>
           <h2>Publicar Proyecto</h2>
 
           <input
-            placeholder="Título del proyecto"
+            placeholder="Título"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             style={styles.input}
           />
 
           <textarea
-            placeholder="Descripción del trabajo"
+            placeholder="Descripción"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             style={styles.input}
@@ -125,7 +146,6 @@ export default function Cliente({ onBack }: Props) {
           </button>
         </div>
 
-        {/* DETALLE */}
         <div style={styles.card}>
           <h2>Proyecto Activo</h2>
 
@@ -139,21 +159,6 @@ export default function Cliente({ onBack }: Props) {
                 <span>📦 Vault</span>
                 <code>{vaultAddress}</code>
               </div>
-
-              {/* BOTONES DEMO */}
-              <div style={{ marginTop: 20 }}>
-                <button style={styles.secondary}>
-                  Liberar Pago
-                </button>
-
-                <button style={styles.secondary}>
-                  Solicitar Cambios
-                </button>
-
-                <button style={styles.danger}>
-                  Disputa
-                </button>
-              </div>
             </>
           )}
         </div>
@@ -162,15 +167,13 @@ export default function Cliente({ onBack }: Props) {
   );
 }
 
-/* ================= STYLES ================= */
-
+/* estilos */
 const styles = {
   container: {
     minHeight: "100vh",
     background: "#0a0a0a",
     color: "#fff",
   },
-
   nav: {
     display: "flex",
     justifyContent: "space-between",
@@ -178,12 +181,10 @@ const styles = {
     borderBottom: "1px solid #222",
     alignItems: "center",
   },
-
   logo: {
     fontWeight: "bold",
     fontSize: 18,
   },
-
   back: {
     background: "transparent",
     border: "1px solid #333",
@@ -191,13 +192,11 @@ const styles = {
     padding: "8px 12px",
     cursor: "pointer",
   },
-
   main: {
     display: "flex",
     gap: 20,
     padding: 30,
   },
-
   card: {
     flex: 1,
     background: "#111",
@@ -205,7 +204,6 @@ const styles = {
     borderRadius: 10,
     border: "1px solid #222",
   },
-
   input: {
     width: "100%",
     padding: 12,
@@ -214,7 +212,6 @@ const styles = {
     border: "1px solid #333",
     color: "#fff",
   },
-
   primary: {
     width: "100%",
     padding: 14,
@@ -224,26 +221,6 @@ const styles = {
     fontWeight: "bold",
     cursor: "pointer",
   },
-
-  secondary: {
-    width: "100%",
-    padding: 12,
-    marginTop: 10,
-    background: "#222",
-    border: "1px solid #444",
-    color: "#fff",
-    cursor: "pointer",
-  },
-
-  danger: {
-    width: "100%",
-    padding: 12,
-    marginTop: 10,
-    background: "#ff4d4d",
-    border: "none",
-    cursor: "pointer",
-  },
-
   vaultBox: {
     marginTop: 20,
     padding: 10,
