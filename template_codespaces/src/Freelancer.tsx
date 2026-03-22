@@ -1,60 +1,90 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import {
-  SystemProgram,
-  Transaction,
-  LAMPORTS_PER_SOL,
-  PublicKey,
-} from "@solana/web3.js";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+import * as anchor from "@coral-xyz/anchor";
+
+import idlJson from "./idl/vault.json";
+
+const idl = idlJson as anchor.Idl;
 
 type Props = {
   onBack: () => void;
 };
 
-const ESCROW = new PublicKey("GS8hRTAX1bdBJhpHcqYgZVozYTyZt3EU9YEv34y9FRyB");
-
 export default function Freelancer({ onBack }: Props) {
   const { connection } = useConnection();
-  const { publicKey, sendTransaction } = useWallet();
+  const wallet = useWallet();
 
+  const [vaultInput, setVaultInput] = useState("");
+  const [commitment, setCommitment] = useState("0.005");
   const [loading, setLoading] = useState(false);
-  const [balance, setBalance] = useState<number | null>(null);
 
-  const checkBalance = async () => {
-    try {
-      const bal = await connection.getBalance(ESCROW);
-      setBalance(bal / LAMPORTS_PER_SOL);
-    } catch (err) {
-      console.error(err);
-      alert("Error al obtener balance");
-    }
-  };
+  // lista local de proyectos (para demo)
+  const [projects, setProjects] = useState<string[]>([]);
 
-  const withdraw = async () => {
-    if (!publicKey) {
-      alert("Conecta tu wallet");
+  const addProject = () => {
+    if (!vaultInput) return;
+    if (!isValidPubkey(vaultInput)) {
+      alert("Vault inválido");
       return;
     }
+    if (projects.includes(vaultInput)) return;
 
+    setProjects([vaultInput, ...projects]);
+    setVaultInput("");
+  };
+
+  const applyToProject = async (vaultAddress: string) => {
     try {
+      if (!wallet.publicKey) {
+        alert("Conecta tu wallet");
+        return;
+      }
+
+      if (!commitment || Number(commitment) <= 0) {
+        alert("Compromiso inválido");
+        return;
+      }
+
       setLoading(true);
 
-      const tx = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: ESCROW,
-          toPubkey: publicKey,
-          lamports: Math.round(0.1 * LAMPORTS_PER_SOL),
-        })
+      const provider = new anchor.AnchorProvider(
+        connection,
+        wallet as any,
+        {
+          preflightCommitment: "processed",
+          commitment: "processed",
+        }
       );
 
-      const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig, "confirmed");
+      anchor.setProvider(provider);
 
-      alert("Fondos retirados");
+      const program = new anchor.Program(idl, provider);
+
+      const vault = new PublicKey(vaultAddress);
+
+      const lamports =
+        parseFloat(commitment) * anchor.web3.LAMPORTS_PER_SOL;
+
+      console.log("👤 Freelancer:", wallet.publicKey.toBase58());
+      console.log("📦 Vault:", vault.toBase58());
+      console.log("💰 Commitment (lamports):", lamports);
+
+      const tx = await program.methods
+        .apply(new anchor.BN(lamports))
+        .accounts({
+          vault,
+          freelancer: wallet.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      console.log("TX APPLY:", tx);
+      alert("✅ Aplicaste al proyecto");
     } catch (err) {
-      console.error(err);
-      alert("No autorizado o error");
+      console.error("❌ ERROR APPLY:", err);
+      alert("Error al aplicar");
     } finally {
       setLoading(false);
     }
@@ -62,128 +92,173 @@ export default function Freelancer({ onBack }: Props) {
 
   return (
     <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>Freelancer</h1>
-
-        <p style={styles.subtitle}>
-          Consulta y retira fondos del escrow
-        </p>
-
-        <div style={{ marginBottom: 20 }}>
-          <WalletMultiButton />
-        </div>
-
-        <button style={styles.secondaryBtn} onClick={checkBalance}>
-          Ver balance escrow
-        </button>
-
-        {balance !== null && (
-          <p style={styles.balance}>{balance} SOL</p>
-        )}
-
-        <button
-          style={{
-            ...styles.button,
-            opacity: loading ? 0.6 : 1,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-          onClick={withdraw}
-          disabled={loading}
-        >
-          {loading ? "Procesando..." : "Retirar fondos"}
-        </button>
-
-        {publicKey && (
-          <p style={styles.wallet}>
-            {publicKey.toString().slice(0, 4)}...
-            {publicKey.toString().slice(-4)}
-          </p>
-        )}
-
-        <button style={styles.backBtn} onClick={onBack}>
+      {/* NAV */}
+      <div style={styles.nav}>
+        <button onClick={onBack} style={styles.back}>
           ← Volver
         </button>
+
+        <div style={styles.logo}>SolFreelance</div>
+
+        <WalletMultiButton />
+      </div>
+
+      {/* MAIN */}
+      <div style={styles.main}>
+        {/* LEFT: BUSCADOR */}
+        <div style={styles.card}>
+          <h2>Explorar Proyectos</h2>
+
+          <input
+            placeholder="Pega el Vault del proyecto"
+            value={vaultInput}
+            onChange={(e) => setVaultInput(e.target.value)}
+            style={styles.input}
+          />
+
+          <button onClick={addProject} style={styles.primary}>
+            Agregar Proyecto
+          </button>
+
+          <input
+            placeholder="Compromiso (SOL)"
+            value={commitment}
+            onChange={(e) => setCommitment(e.target.value)}
+            style={styles.input}
+          />
+
+          <p style={styles.hint}>
+            Depósito reembolsable. Demuestra compromiso.
+          </p>
+        </div>
+
+        {/* RIGHT: LISTA */}
+        <div style={styles.card}>
+          <h2>Disponibles</h2>
+
+          {projects.length === 0 && (
+            <p style={{ color: "#777" }}>
+              No hay proyectos. Pega un vault para probar.
+            </p>
+          )}
+
+          {projects.map((vault, i) => (
+            <div key={i} style={styles.project}>
+              <div style={{ marginBottom: 10 }}>
+                <span style={{ color: "#888" }}>Vault</span>
+                <code style={styles.code}>{vault}</code>
+              </div>
+
+              <button
+                onClick={() => applyToProject(vault)}
+                style={styles.primary}
+                disabled={loading}
+              >
+                {loading ? "Procesando..." : "Aplicar"}
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-const styles: { [key: string]: any } = {
+/* ========== utils ========== */
+
+function isValidPubkey(v: string) {
+  try {
+    new PublicKey(v);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* ========== styles ========== */
+
+const styles = {
   container: {
-    height: "100vh",
-    background: "#050508",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+    minHeight: "100vh",
+    background: "#0a0a0a",
     color: "#fff",
-    fontFamily: "sans-serif",
+  },
+
+  nav: {
+    display: "flex",
+    justifyContent: "space-between",
+    padding: "20px 30px",
+    borderBottom: "1px solid #222",
+    alignItems: "center",
+  },
+
+  logo: {
+    fontWeight: "bold",
+    fontSize: 18,
+  },
+
+  back: {
+    background: "transparent",
+    border: "1px solid #333",
+    color: "#fff",
+    padding: "8px 12px",
+    cursor: "pointer",
+  },
+
+  main: {
+    display: "flex",
+    gap: 20,
+    padding: 30,
   },
 
   card: {
-    background: "rgba(255,255,255,0.05)",
-    backdropFilter: "blur(12px)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "16px",
-    padding: "40px",
-    width: "320px",
-    textAlign: "center",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+    flex: 1,
+    background: "#111",
+    padding: 20,
+    borderRadius: 10,
+    border: "1px solid #222",
   },
 
-  title: {
-    fontSize: "28px",
-    marginBottom: "10px",
-  },
-
-  subtitle: {
-    fontSize: "14px",
-    color: "#aaa",
-    marginBottom: "20px",
-  },
-
-  button: {
+  input: {
     width: "100%",
-    padding: "14px",
-    borderRadius: "10px",
-    border: "none",
-    background: "linear-gradient(90deg, #14F195, #00FFA3)",
-    color: "#000",
-    fontWeight: "bold",
-    fontSize: "16px",
-    marginTop: "10px",
-  },
-
-  secondaryBtn: {
-    width: "100%",
-    padding: "10px",
-    borderRadius: "8px",
+    padding: 12,
+    marginTop: 10,
+    background: "#0a0a0a",
     border: "1px solid #333",
-    background: "transparent",
-    color: "#aaa",
-    cursor: "pointer",
-    marginBottom: "10px",
+    color: "#fff",
   },
 
-  backBtn: {
+  primary: {
     width: "100%",
-    padding: "10px",
-    borderRadius: "8px",
-    border: "1px solid #444",
-    background: "transparent",
-    color: "#aaa",
+    padding: 14,
+    marginTop: 12,
+    background: "#14F195",
+    border: "none",
+    fontWeight: "bold",
     cursor: "pointer",
-    marginTop: "10px",
   },
 
-  wallet: {
-    marginTop: "20px",
-    fontSize: "12px",
+  project: {
+    border: "1px solid #333",
+    borderRadius: 10,
+    padding: 15,
+    marginTop: 12,
+    background: "#0d0d0d",
+  },
+
+  code: {
+    display: "block",
+    marginTop: 5,
+    fontSize: 12,
+    background: "#000",
+    padding: 8,
+    border: "1px solid #333",
+    wordBreak: "break-all" as const,
+  },
+
+  hint: {
+    marginTop: 10,
+    fontSize: 12,
     color: "#888",
-  },
-
-  balance: {
-    marginTop: "10px",
-    fontSize: "14px",
-    color: "#14F195",
   },
 };

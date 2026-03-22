@@ -1,57 +1,80 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import {
-  SystemProgram,
-  Transaction,
-  LAMPORTS_PER_SOL,
-  PublicKey,
-} from "@solana/web3.js";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
+import * as anchor from "@coral-xyz/anchor";
+
+import idlJson from "./idl/vault.json";
+
+const idl = idlJson as anchor.Idl;
 
 type Props = {
   onBack: () => void;
 };
 
-const ESCROW = new PublicKey("GS8hRTAX1bdBJhpHcqYgZVozYTyZt3EU9YEv34y9FRyB");
-
 export default function Cliente({ onBack }: Props) {
   const { connection } = useConnection();
-  const { publicKey, sendTransaction } = useWallet();
+  const wallet = useWallet();
 
-  const [amount, setAmount] = useState(0.1);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("0.01");
   const [loading, setLoading] = useState(false);
+  const [vaultAddress, setVaultAddress] = useState("");
 
-  const deposit = async () => {
-    if (!publicKey) {
-      alert("Conecta tu wallet");
-      return;
-    }
-
-    if (!amount || amount <= 0) {
-      alert("Monto inválido");
-      return;
-    }
-
+  const createProject = async () => {
     try {
+      if (!wallet.publicKey) {
+        alert("Conecta tu wallet");
+        return;
+      }
+
+      if (!amount || Number(amount) <= 0) {
+        alert("Monto inválido");
+        return;
+      }
+
       setLoading(true);
 
-      const lamports = Math.round(amount * LAMPORTS_PER_SOL);
-
-      const tx = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: ESCROW,
-          lamports,
-        })
+      const provider = new anchor.AnchorProvider(
+        connection,
+        wallet as any,
+        {
+          preflightCommitment: "processed",
+          commitment: "processed",
+        }
       );
 
-      const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig, "confirmed");
+      anchor.setProvider(provider);
 
-      alert(`Depósito exitoso: ${amount} SOL`);
+      const program = new anchor.Program(idl, provider);
+      const PROGRAM_ID = program.programId;
+
+      const [vaultPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault"), wallet.publicKey.toBuffer()],
+        PROGRAM_ID
+      );
+
+      const lamports =
+        parseFloat(amount) * anchor.web3.LAMPORTS_PER_SOL;
+
+      const tx = await program.methods
+        .createProject(new anchor.BN(lamports))
+        .accounts({
+          vault: vaultPda,
+          client: wallet.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      console.log("TX:", tx);
+
+      setVaultAddress(vaultPda.toBase58());
+
+      alert("✅ Proyecto creado");
     } catch (err) {
-      console.error(err);
-      alert("Error en la transacción");
+      console.error("❌ ERROR:", err);
+      alert("Error al crear");
     } finally {
       setLoading(false);
     }
@@ -59,121 +82,173 @@ export default function Cliente({ onBack }: Props) {
 
   return (
     <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>Cliente</h1>
-
-        <p style={styles.subtitle}>
-          Deposita fondos en escrow de forma segura
-        </p>
-
-        <div style={{ marginBottom: 20 }}>
-          <WalletMultiButton />
-        </div>
-
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(Number(e.target.value))}
-          step="0.01"
-          style={styles.input}
-          placeholder="Monto en SOL"
-        />
-
-        <button
-          style={{
-            ...styles.button,
-            opacity: loading ? 0.6 : 1,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-          onClick={deposit}
-          disabled={loading}
-        >
-          {loading ? "Procesando..." : `Depositar ${amount} SOL`}
-        </button>
-
-        {publicKey && (
-          <p style={styles.wallet}>
-            {publicKey.toString().slice(0, 4)}...
-            {publicKey.toString().slice(-4)}
-          </p>
-        )}
-
-        <button style={styles.backBtn} onClick={onBack}>
+      {/* NAV */}
+      <div style={styles.nav}>
+        <button onClick={onBack} style={styles.back}>
           ← Volver
         </button>
+
+        <div style={styles.logo}>SolFreelance</div>
+
+        <WalletMultiButton />
+      </div>
+
+      {/* MAIN */}
+      <div style={styles.main}>
+        {/* FORM */}
+        <div style={styles.card}>
+          <h2>Publicar Proyecto</h2>
+
+          <input
+            placeholder="Título del proyecto"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={styles.input}
+          />
+
+          <textarea
+            placeholder="Descripción del trabajo"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            style={styles.input}
+          />
+
+          <input
+            placeholder="Monto en SOL"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            style={styles.input}
+          />
+
+          <button onClick={createProject} style={styles.primary}>
+            {loading ? "Creando..." : "Publicar Proyecto"}
+          </button>
+        </div>
+
+        {/* DETALLE */}
+        <div style={styles.card}>
+          <h2>Proyecto Activo</h2>
+
+          <p><b>Título:</b> {title || "-"}</p>
+          <p><b>Descripción:</b> {description || "-"}</p>
+          <p><b>Monto:</b> {amount} SOL</p>
+
+          {vaultAddress && (
+            <>
+              <div style={styles.vaultBox}>
+                <span>📦 Vault</span>
+                <code>{vaultAddress}</code>
+              </div>
+
+              {/* BOTONES DEMO */}
+              <div style={{ marginTop: 20 }}>
+                <button style={styles.secondary}>
+                  Liberar Pago
+                </button>
+
+                <button style={styles.secondary}>
+                  Solicitar Cambios
+                </button>
+
+                <button style={styles.danger}>
+                  Disputa
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-const styles: { [key: string]: any } = {
+/* ================= STYLES ================= */
+
+const styles = {
   container: {
-    height: "100vh",
-    background: "linear-gradient(135deg, #0f0f0f, #1a1a2e)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+    minHeight: "100vh",
+    background: "#0a0a0a",
     color: "#fff",
-    fontFamily: "sans-serif",
+  },
+
+  nav: {
+    display: "flex",
+    justifyContent: "space-between",
+    padding: "20px 30px",
+    borderBottom: "1px solid #222",
+    alignItems: "center",
+  },
+
+  logo: {
+    fontWeight: "bold",
+    fontSize: 18,
+  },
+
+  back: {
+    background: "transparent",
+    border: "1px solid #333",
+    color: "#fff",
+    padding: "8px 12px",
+    cursor: "pointer",
+  },
+
+  main: {
+    display: "flex",
+    gap: 20,
+    padding: 30,
   },
 
   card: {
-    background: "rgba(255,255,255,0.05)",
-    backdropFilter: "blur(12px)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "16px",
-    padding: "40px",
-    width: "320px",
-    textAlign: "center",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-  },
-
-  title: {
-    fontSize: "28px",
-    marginBottom: "10px",
-  },
-
-  subtitle: {
-    fontSize: "14px",
-    color: "#aaa",
-    marginBottom: "30px",
+    flex: 1,
+    background: "#111",
+    padding: 20,
+    borderRadius: 10,
+    border: "1px solid #222",
   },
 
   input: {
     width: "100%",
-    padding: "12px",
-    borderRadius: "8px",
+    padding: 12,
+    marginTop: 10,
+    background: "#0a0a0a",
     border: "1px solid #333",
-    background: "#111",
     color: "#fff",
-    marginBottom: "15px",
   },
 
-  button: {
+  primary: {
     width: "100%",
-    padding: "14px",
-    borderRadius: "10px",
+    padding: 14,
+    marginTop: 15,
+    background: "#14F195",
     border: "none",
-    background: "linear-gradient(90deg, #9945FF, #14F195)",
-    color: "#000",
     fontWeight: "bold",
-    fontSize: "16px",
-  },
-
-  backBtn: {
-    width: "100%",
-    padding: "10px",
-    borderRadius: "8px",
-    border: "1px solid #444",
-    background: "transparent",
-    color: "#aaa",
     cursor: "pointer",
-    marginTop: "10px",
   },
 
-  wallet: {
-    marginTop: "20px",
-    fontSize: "12px",
-    color: "#888",
+  secondary: {
+    width: "100%",
+    padding: 12,
+    marginTop: 10,
+    background: "#222",
+    border: "1px solid #444",
+    color: "#fff",
+    cursor: "pointer",
+  },
+
+  danger: {
+    width: "100%",
+    padding: 12,
+    marginTop: 10,
+    background: "#ff4d4d",
+    border: "none",
+    cursor: "pointer",
+  },
+
+  vaultBox: {
+    marginTop: 20,
+    padding: 10,
+    background: "#000",
+    border: "1px solid #333",
+    fontSize: 12,
   },
 };

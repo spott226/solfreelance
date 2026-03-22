@@ -1,0 +1,291 @@
+{
+  "address": "4ZQboCKFb5sJHkzNhQ48VTmo2Zt2zTaJWuMw2aENuo66",
+  "metadata": {
+    "name": "vault",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "A simple SOL vault program"
+  },
+  "instructions": [
+    {
+      "name": "apply",
+      "discriminator": [
+        248,
+        243,
+        145,
+        24,
+        105,
+        50,
+        162,
+        225
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "freelancer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "commitment",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "claim_refund",
+      "discriminator": [
+        15,
+        16,
+        30,
+        161,
+        255,
+        228,
+        97,
+        60
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "freelancer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_project",
+      "discriminator": [
+        148,
+        219,
+        181,
+        42,
+        221,
+        114,
+        145,
+        190
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "client"
+              }
+            ]
+          }
+        },
+        {
+          "name": "client",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "release",
+      "discriminator": [
+        253,
+        249,
+        15,
+        206,
+        28,
+        127,
+        193,
+        241
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "freelancer",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "select_freelancer",
+      "discriminator": [
+        206,
+        86,
+        40,
+        44,
+        162,
+        158,
+        242,
+        50
+      ],
+      "accounts": [
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "client",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "freelancer"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "No autorizado"
+    },
+    {
+      "code": 6001,
+      "name": "AlreadyReleased",
+      "msg": "Ya liberado"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidAmount",
+      "msg": "Monto inválido"
+    },
+    {
+      "code": 6003,
+      "name": "AlreadyAssigned",
+      "msg": "Ya asignado"
+    },
+    {
+      "code": 6004,
+      "name": "AlreadyApplied",
+      "msg": "Ya aplicó"
+    },
+    {
+      "code": 6005,
+      "name": "NotApplicant",
+      "msg": "No es aplicante"
+    },
+    {
+      "code": 6006,
+      "name": "AlreadyRefunded",
+      "msg": "Ya reembolsado"
+    },
+    {
+      "code": 6007,
+      "name": "NotAssigned",
+      "msg": "No asignado"
+    }
+  ],
+  "types": [
+    {
+      "name": "Applicant",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "freelancer",
+            "type": "pubkey"
+          },
+          {
+            "name": "commitment",
+            "type": "u64"
+          },
+          {
+            "name": "refunded",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "client",
+            "type": "pubkey"
+          },
+          {
+            "name": "freelancer",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "is_assigned",
+            "type": "bool"
+          },
+          {
+            "name": "is_released",
+            "type": "bool"
+          },
+          {
+            "name": "applicants",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "Applicant"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

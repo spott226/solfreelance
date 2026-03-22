@@ -1,11 +1,9 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import Cliente from "./Cliente";
 import Freelancer from "./Freelancer";
 
-type View = "home" | "cliente" | "freelancer";
-
 export default function App() {
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<"home" | "cliente" | "freelancer">("home");
 
   if (view === "cliente") {
     return <Cliente onBack={() => setView("home")} />;
@@ -17,105 +15,125 @@ export default function App() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.glow}></div>
+      {/* NAVBAR */}
+      <div style={styles.nav}>
+        <div style={styles.logo}>SolFreelance</div>
+        <div style={styles.tag}>Escrow descentralizado</div>
+      </div>
 
-      <div style={styles.card}>
-        <h1 style={styles.title}>🚀 SolFreelance</h1>
+      {/* HERO */}
+      <div style={styles.hero}>
+        <h1 style={styles.title}>
+          Contrata sin riesgo.<br />
+          Cobra con garantía.
+        </h1>
 
         <p style={styles.subtitle}>
-          Pagos seguros con escrow en Solana
+          Pagos protegidos en smart contracts.
+          Freelancers con compromiso real.
         </p>
 
-        <div style={styles.buttons}>
+        <div style={styles.actions}>
           <button
-            style={styles.primaryBtn}
+            style={styles.primary}
             onClick={() => setView("cliente")}
           >
             Soy Cliente
           </button>
 
           <button
-            style={styles.secondaryBtn}
+            style={styles.secondary}
             onClick={() => setView("freelancer")}
           >
             Soy Freelancer
           </button>
         </div>
       </div>
+
+      {/* FOOTER */}
+      <div style={styles.footer}>
+        © 2026 SolFreelance — Built on Solana
+      </div>
     </div>
   );
 }
 
-/* ================= ESTILOS ================= */
+/* ================== STYLES ================== */
 
-const styles: Record<string, React.CSSProperties> = {
+const styles = {
   container: {
-    minHeight: "100vh",
-    background: "linear-gradient(135deg, #020617, #0f172a)",
+    height: "100vh",
+    background: "linear-gradient(135deg, #0a0a0a, #111)",
+    color: "#fff",
     display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontFamily: "Arial, sans-serif",
-    position: "relative",
-    overflow: "hidden",
+    flexDirection: "column" as const,
+    justifyContent: "space-between",
   },
 
-  glow: {
-    position: "absolute",
-    width: "500px",
-    height: "500px",
-    background: "radial-gradient(circle, #6366f1, transparent)",
-    filter: "blur(120px)",
-    opacity: 0.3,
+  nav: {
+    display: "flex",
+    justifyContent: "space-between",
+    padding: "20px 40px",
+    borderBottom: "1px solid #222",
   },
 
-  card: {
-    background: "rgba(15, 23, 42, 0.9)",
-    border: "1px solid #334155",
+  logo: {
+    fontSize: 20,
+    fontWeight: "bold",
+    letterSpacing: 1,
+  },
+
+  tag: {
+    fontSize: 12,
+    color: "#888",
+  },
+
+  hero: {
+    textAlign: "center" as const,
     padding: "40px",
-    borderRadius: "16px",
-    textAlign: "center",
-    width: "350px",
-    zIndex: 2,
   },
 
   title: {
-    fontSize: "28px",
-    color: "#ffffff",
-    marginBottom: "10px",
+    fontSize: 42,
+    fontWeight: "bold",
+    marginBottom: 20,
+    lineHeight: 1.2,
   },
 
   subtitle: {
-    color: "#94a3b8",
-    marginBottom: "30px",
-    fontSize: "14px",
+    fontSize: 16,
+    color: "#aaa",
+    marginBottom: 40,
   },
 
-  buttons: {
+  actions: {
     display: "flex",
-    flexDirection: "column",
-    gap: "15px",
+    justifyContent: "center",
+    gap: 20,
   },
 
-  primaryBtn: {
-    padding: "12px",
-    borderRadius: "10px",
+  primary: {
+    padding: "14px 28px",
+    background: "#14F195",
     border: "none",
-    background: "#3b82f6",
-    color: "#ffffff",
-    cursor: "pointer",
     fontWeight: "bold",
-    transition: "0.2s",
+    cursor: "pointer",
+    borderRadius: 8,
   },
 
-  secondaryBtn: {
-    padding: "12px",
-    borderRadius: "10px",
-    border: "none",
-    background: "#8b5cf6",
-    color: "#ffffff",
+  secondary: {
+    padding: "14px 28px",
+    background: "transparent",
+    border: "1px solid #444",
+    color: "#fff",
     cursor: "pointer",
-    fontWeight: "bold",
-    transition: "0.2s",
+    borderRadius: 8,
+  },
+
+  footer: {
+    textAlign: "center" as const,
+    padding: 20,
+    fontSize: 12,
+    color: "#666",
   },
 };

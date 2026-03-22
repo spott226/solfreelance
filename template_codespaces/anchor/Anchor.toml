@@ -5,14 +5,14 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-vault = "FinQpN2cyfhNKHVX2LjPRqg7V4JUcPXZ5ipLSSrHFBJJ"
+vault = "4ZQboCKFb5sJHkzNhQ48VTmo2Zt2zTaJWuMw2aENuo66"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "devnet"
-wallet = "~/.config/solana/id.json"
+wallet = "./new-wallet.json"
 
 [scripts]
 test = "cargo test"
