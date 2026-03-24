@@ -7,11 +7,15 @@ declare_id!("4ZQboCKFb5sJHkzNhQ48VTmo2Zt2zTaJWuMw2aENuo66");
 pub mod vault {
     use super::*;
 
-    // =========================
-    // CREATE (cliente deposita)
-    // =========================
-    pub fn create_project(ctx: Context<CreateProject>, amount: u64) -> Result<()> {
+    pub fn create_project(
+        ctx: Context<CreateProject>,
+        amount: u64,
+        timestamp: i64,
+    ) -> Result<()> {
         require!(amount > 0, ErrorCode::InvalidAmount);
+
+        let vault_info = ctx.accounts.vault.to_account_info();
+        let client_info = ctx.accounts.client.to_account_info();
 
         let vault = &mut ctx.accounts.vault;
 
@@ -21,14 +25,14 @@ pub mod vault {
         vault.is_assigned = false;
         vault.is_released = false;
         vault.applicants = Vec::new();
+        vault.timestamp = timestamp;
 
-        // depósito inicial
         transfer(
             CpiContext::new(
                 ctx.accounts.system_program.to_account_info(),
                 Transfer {
-                    from: ctx.accounts.client.to_account_info(),
-                    to: ctx.accounts.vault.to_account_info(),
+                    from: client_info,
+                    to: vault_info,
                 },
             ),
             amount,
@@ -37,51 +41,43 @@ pub mod vault {
         Ok(())
     }
 
-    // =========================
-    // APPLY (freelancer deposita)
-    // =========================
     pub fn apply(ctx: Context<Apply>, commitment: u64) -> Result<()> {
+        require!(commitment > 0, ErrorCode::InvalidAmount);
 
-    // 🔥 PRIMERO sacas account_info
-    let vault_info = ctx.accounts.vault.to_account_info();
-    let freelancer_info = ctx.accounts.freelancer.to_account_info();
+        let vault_info = ctx.accounts.vault.to_account_info();
+        let freelancer_info = ctx.accounts.freelancer.to_account_info();
 
-    // 🔥 LUEGO mutable borrow
-    let vault = &mut ctx.accounts.vault;
+        let vault = &mut ctx.accounts.vault;
 
-    require!(!vault.is_assigned, ErrorCode::AlreadyAssigned);
+        require!(!vault.is_assigned, ErrorCode::AlreadyAssigned);
 
-    let freelancer = ctx.accounts.freelancer.key();
+        let freelancer = ctx.accounts.freelancer.key();
 
-    require!(
-        !vault.applicants.iter().any(|a| a.freelancer == freelancer),
-        ErrorCode::AlreadyApplied
-    );
+        require!(
+            !vault.applicants.iter().any(|a| a.freelancer == freelancer),
+            ErrorCode::AlreadyApplied
+        );
 
-    // 🔥 transferencia
-    transfer(
-        CpiContext::new(
-            ctx.accounts.system_program.to_account_info(),
-            Transfer {
-                from: freelancer_info,
-                to: vault_info,
-            },
-        ),
-        commitment,
-    )?;
+        transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                Transfer {
+                    from: freelancer_info,
+                    to: vault_info,
+                },
+            ),
+            commitment,
+        )?;
 
-    vault.applicants.push(Applicant {
-        freelancer,
-        commitment,
-        refunded: false,
-    });
+        vault.applicants.push(Applicant {
+            freelancer,
+            commitment,
+            refunded: false,
+        });
 
-    Ok(())
-}
+        Ok(())
+    }
 
-    // =========================
-    // SELECT
-    // =========================
     pub fn select_freelancer(ctx: Context<SelectFreelancer>) -> Result<()> {
         let vault = &mut ctx.accounts.vault;
 
@@ -105,74 +101,60 @@ pub mod vault {
         Ok(())
     }
 
-    // =========================
-    // CLAIM REFUND
-    // =========================
     pub fn claim_refund(ctx: Context<ClaimRefund>) -> Result<()> {
+        let vault_info = ctx.accounts.vault.to_account_info();
+        let freelancer_info = ctx.accounts.freelancer.to_account_info();
 
-    // 🔥 primero account_info
-    let vault_info = ctx.accounts.vault.to_account_info();
-    let freelancer_info = ctx.accounts.freelancer.to_account_info();
+        let vault = &mut ctx.accounts.vault;
 
-    // 🔥 luego mutable
-    let vault = &mut ctx.accounts.vault;
+        let freelancer = ctx.accounts.freelancer.key();
 
-    let freelancer = ctx.accounts.freelancer.key();
+        require!(freelancer != vault.freelancer, ErrorCode::Unauthorized);
 
-    let applicant = vault
-        .applicants
-        .iter_mut()
-        .find(|a| a.freelancer == freelancer)
-        .ok_or(ErrorCode::NotApplicant)?;
+        let applicant = vault
+            .applicants
+            .iter_mut()
+            .find(|a| a.freelancer == freelancer)
+            .ok_or(ErrorCode::NotApplicant)?;
 
-    require!(!applicant.refunded, ErrorCode::AlreadyRefunded);
+        require!(!applicant.refunded, ErrorCode::AlreadyRefunded);
 
-    let amount = applicant.commitment;
+        let amount = applicant.commitment;
 
-    **vault_info.try_borrow_mut_lamports()? -= amount;
-    **freelancer_info.try_borrow_mut_lamports()? += amount;
+        **vault_info.try_borrow_mut_lamports()? -= amount;
+        **freelancer_info.try_borrow_mut_lamports()? += amount;
 
-    applicant.refunded = true;
+        applicant.refunded = true;
 
-    Ok(())
-}
+        Ok(())
+    }
 
-    // =========================
-    // RELEASE
-    // =========================
     pub fn release(ctx: Context<Release>) -> Result<()> {
+        let vault_info = ctx.accounts.vault.to_account_info();
+        let freelancer_info = ctx.accounts.freelancer.to_account_info();
 
-    // 🔥 PRIMERO sacas account_info
-    let vault_info = ctx.accounts.vault.to_account_info();
-    let freelancer_info = ctx.accounts.freelancer.to_account_info();
+        let vault = &mut ctx.accounts.vault;
 
-    // 🔥 LUEGO haces mutable borrow
-    let vault = &mut ctx.accounts.vault;
+        require!(!vault.is_released, ErrorCode::AlreadyReleased);
 
-    require!(vault.is_assigned, ErrorCode::NotAssigned);
-    require!(!vault.is_released, ErrorCode::AlreadyReleased);
+        require!(
+            ctx.accounts.client.key() == vault.client,
+            ErrorCode::Unauthorized
+        );
 
-    require!(
-        ctx.accounts.freelancer.key() == vault.freelancer,
-        ErrorCode::Unauthorized
-    );
+        require!(vault.is_assigned, ErrorCode::NotAssigned);
 
-    let amount = vault.amount;
+        let amount = vault.amount;
 
-    // 🔥 transferencia segura
-    **vault_info.try_borrow_mut_lamports()? -= amount;
-    **freelancer_info.try_borrow_mut_lamports()? += amount;
+        // 🔥 FIX (único cambio)
+        **vault_info.try_borrow_mut_lamports()? -= amount;
+        **freelancer_info.try_borrow_mut_lamports()? += amount;
 
-    vault.is_released = true;
+        vault.is_released = true;
 
-    Ok(())
+        Ok(())
+    }
 }
-
-}
-
-// =========================
-// STRUCTS
-// =========================
 
 #[account]
 pub struct Vault {
@@ -182,6 +164,7 @@ pub struct Vault {
     pub is_assigned: bool,
     pub is_released: bool,
     pub applicants: Vec<Applicant>,
+    pub timestamp: i64,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -191,20 +174,21 @@ pub struct Applicant {
     pub refunded: bool,
 }
 
-// =========================
-// ACCOUNTS
-// =========================
-
 #[derive(Accounts)]
+#[instruction(amount: u64, timestamp: i64)]
 pub struct CreateProject<'info> {
     #[account(
-    init,
-    payer = client,
-    seeds = [b"vault", client.key().as_ref()],
-    bump,
-    space = 8 + 32 + 32 + 8 + 1 + 1 + (4 + 1000)
-)]
-pub vault: Account<'info, Vault>,
+        init,
+        payer = client,
+        seeds = [
+            b"vault",
+            client.key().as_ref(),
+            &timestamp.to_le_bytes()
+        ],
+        bump,
+        space = 8 + 32 + 32 + 8 + 1 + 1 + (4 + 1000) + 8
+    )]
+    pub vault: Account<'info, Vault>,
 
     #[account(mut)]
     pub client: Signer<'info>,
@@ -246,17 +230,25 @@ pub struct ClaimRefund<'info> {
 
 #[derive(Accounts)]
 pub struct Release<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [
+            b"vault",
+            vault.client.as_ref(),
+            &vault.timestamp.to_le_bytes()
+        ],
+        bump
+    )]
     pub vault: Account<'info, Vault>,
 
     /// CHECK:
     #[account(mut)]
     pub freelancer: AccountInfo<'info>,
-}
 
-// =========================
-// ERRORES
-// =========================
+    pub client: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
 
 #[error_code]
 pub enum ErrorCode {
